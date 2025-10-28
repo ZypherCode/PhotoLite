@@ -3,8 +3,9 @@ __pycache__/
 *.py[codz]
 *$py.class
 
-# cfg
+# other
 pyvenv.cfg
+*.png
 
 # C extensions
 *.so
