@@ -1,13 +1,13 @@
 from PyQt6.QtWidgets import QGraphicsView, QGraphicsScene
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QWheelEvent, QPainter, QBrush
+from PyQt6.QtGui import QWheelEvent, QPainter, QBrush, QColor
 
 
 class CanvasView(QGraphicsView):
     def __init__(self, scene):
         super().__init__(scene)
         self.setRenderHint(QPainter.RenderHint.Antialiasing)
-        self.setBackgroundBrush(QBrush(Qt.GlobalColor.darkGray))
+        self.setBackgroundBrush(QBrush(QColor("#252525")))
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self._zoom_factor = 1.15  # коэффициент масштабирования

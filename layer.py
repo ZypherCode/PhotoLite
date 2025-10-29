@@ -89,7 +89,7 @@ class Image(Layer):
         self.add_item(item)
 
 class Text(Layer):
-    def __init__(self, name, scene, color=Qt.GlobalColor.black, text="Lorem impsum", z_value=0):
+    def __init__(self, name, scene, color=Qt.GlobalColor.black, text="Lorem ipsum", z_value=0):
         super().__init__(name, scene, z_value=z_value)
 
         self.scale = 100

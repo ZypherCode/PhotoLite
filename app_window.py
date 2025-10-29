@@ -1,7 +1,7 @@
 import sys, math
 from PyQt6 import uic
 from PyQt6.QtWidgets import QApplication, QMainWindow, QFileDialog, QDialog, QMessageBox, QTextEdit, QFontComboBox, QSpinBox
-from PyQt6.QtGui import QPixmap
+from PyQt6.QtGui import QPixmap, QPalette, QColor
 from document import Document
 from tools import Hand, Editor
 from PyQt6.QtCore import QRectF, Qt
@@ -315,11 +315,11 @@ class SettingsForm(QDialog):
 
             self.fontSize = QSpinBox()
             self.fontSize.setMinimum(5)
-            self.fontSize.setMaximum(100)
+            self.fontSize.setMaximum(2184)
             try:
                 self.fontSize.setValue(self.layer.font.pixelSize())
             except:
-                pass
+                self.fontSize.setValue(12)
             self.gridLayout_5.addWidget(self.fontSize, 1, 0)
 
         # связываем кнопки
@@ -367,6 +367,11 @@ class SettingsForm(QDialog):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    with open("ui\\dark.qss", "r") as f:
+        app.setStyleSheet(f.read())
+    #palette = app.palette()
+    #palette.setColor(QPalette.ColorRole.Window, QColor("#2b2b2b"))
+    #app.setPalette(palette)
     window = AppWindow()
     window.show()
     sys.exit(app.exec())

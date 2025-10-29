@@ -29,8 +29,6 @@ class Document(QWidget):
             self.add_bg_layer()
         else:
             self.add_solid_layer("Background", color=bgcolor)
-        '''lyr = Layer("Background", self.scene, Qt.GlobalColor.white, width, height)
-        self.layers.add_layer(layer=lyr)'''
 
         layout = QVBoxLayout(self)
         layout.addWidget(self.view)
@@ -38,7 +36,7 @@ class Document(QWidget):
         self.setLayout(layout)
 
         #self.export_area("part.png", QRectF(100, 100, 400, 300))
-        self.add_text_layer("Text", "Lorem impsum")
+        self.add_text_layer("Text", "Lorem ipsum")
 
     def move_layer(self, index, direction):
         index = len(self.layers._layers) - index - 1
@@ -74,7 +72,7 @@ class Document(QWidget):
         self.layers.add_layer(layer=lyr)
 
     def add_text_layer(self, name, text):
-        lyr = Text(name, self.scene, text)
+        lyr = Text(name, self.scene, text=text)
         lyr.set_locked(False)
         self.layers.add_layer(layer=lyr)
 
