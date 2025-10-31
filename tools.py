@@ -12,3 +12,10 @@ class Editor(BasicTool):
     def __init__(self):
         super().__init__()
         self.type = "Editor"
+
+
+class BrushTool(BasicTool):
+    def __init__(self):
+        super().__init__()
+        self.type = "Brush"
+        self.width = 4

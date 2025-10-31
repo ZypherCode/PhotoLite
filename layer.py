@@ -1,8 +1,8 @@
 from PyQt6.QtWidgets import QGraphicsItemGroup, QGraphicsRectItem, QGraphicsTextItem
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import QGraphicsPixmapItem
-from PyQt6.QtGui import QBrush, QPen
-from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QBrush, QPen, QPainter, QImage, QFontMetrics, QColor, QFont
+from PyQt6.QtCore import Qt, QSize, QRectF
 
 
 class Layer:
@@ -60,14 +60,56 @@ class Layer:
         self.group.removeFromGroup(item)
         self.scene.removeItem(item)
 
+    def get_preview(self, size: QSize = QSize(64, 64)) -> QPixmap:
+        """Создает миниатюру слоя в виде QPixmap (для списка слоев)."""
+        preview = QPixmap(size)
+        preview.fill(Qt.GlobalColor.transparent)
+
+        painter = QPainter(preview)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.TextAntialiasing)
+
+        # Шахматный фон (для прозрачных областей)
+        cell = 8
+        for y in range(0, size.height(), cell):
+            for x in range(0, size.width(), cell):
+                color = QColor(200, 200, 200) if (x // cell + y // cell) % 2 == 0 else QColor(240, 240, 240)
+                painter.fillRect(x, y, cell, cell, color)
+
+        # Если слой невидим — делаем полупрозрачный
+        if not self.visible:
+            painter.setOpacity(0.3)
+        else:
+            painter.setOpacity(self.opacity)
+
+        # --- Тип слоя: Solid ---
+        if self.type == "Solid":
+            painter.fillRect(preview.rect(), self.solid_color)
+
+        # --- Тип слоя: Image ---
+        elif self.type == "Image" and self.pixmap:
+            scaled = self.pixmap.scaled(size, Qt.AspectRatioMode.KeepAspectRatio,
+                                        Qt.TransformationMode.SmoothTransformation)
+            x = (size.width() - scaled.width()) // 2
+            y = (size.height() - scaled.height()) // 2
+            painter.drawPixmap(x, y, scaled)
+
+        # --- Тип слоя: Text ---
+        elif self.type == "Text" and self.text:
+            painter.end()
+            return QPixmap("ui\\icons\\text.svg").scaledToHeight(size.height() - 10)
+
+        painter.end()
+        return preview
+
 class Solid(Layer):
     def __init__(self, name, scene, bgcolor=Qt.GlobalColor.white, width=1920, height=1080, z_value=0):
         super().__init__(name, scene, bgcolor, width, height, z_value)
 
         self.width = width
         self.height = height
-        self.scale = 1.0
         self.type = "Solid"
+        self.solid_color = bgcolor
 
         # Добавляем фоновый прямоугольник
         rect_item = QGraphicsRectItem(0, 0, self.width, self.height)
@@ -77,28 +119,60 @@ class Solid(Layer):
         self.add_item(rect_item)
 
 class Image(Layer):
-    def __init__(self, name, scene, pixmap, width=1920, height=1080, z_value=0):
+    def __init__(self, name, scene, pixmap, width=1920, height=1080, z_value=1):
         super().__init__(name, scene, None, width, height, z_value)
 
         self.scale = 100
         self.type = "Image"
+        self.pixmap = pixmap
 
-        item = QGraphicsPixmapItem(pixmap)
-        item.setFlags(QGraphicsPixmapItem.GraphicsItemFlag.ItemIsMovable |
+        self.item = QGraphicsPixmapItem(pixmap)
+        self.item.setFlags(QGraphicsPixmapItem.GraphicsItemFlag.ItemIsMovable |
                     QGraphicsPixmapItem.GraphicsItemFlag.ItemIsSelectable)
-        self.add_item(item)
+        self.add_item(self.item)
+
+    def draw_line(self, p1, p2, color, width=3, erase=False):
+        """Рисует прямо в pixmap, не пересоздавая его"""
+        if self.locked:
+            return
+
+        painter = QPainter(self.pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        if erase:
+            # ВАЖНО: включаем режим стирания (делает пиксели прозрачными)
+            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
+            pen = QPen(Qt.GlobalColor.transparent)
+        else:
+            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
+            pen = QPen(color)
+
+        pen.setWidth(width)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        painter.setPen(pen)
+
+        painter.drawLine(p1, p2)
+        painter.end()
+
+        # Обновляем виджет, если нужно
+        self.item.setPixmap(self.pixmap)
 
 class Text(Layer):
-    def __init__(self, name, scene, color=Qt.GlobalColor.black, text="Lorem ipsum", z_value=0):
+    def __init__(self, name, scene, color=QColor(0, 0, 0), text="Lorem ipsum", z_value=0):
         super().__init__(name, scene, z_value=z_value)
 
         self.scale = 100
         self.type = "Text"
         self.text = text
+        self.font = QFont("Arial")
+        self.font.setPixelSize(150)
+        self.text_color = color
 
         self.item = QGraphicsTextItem(self.text)
+        self.item.setFont(self.font)
         self.item.setFlags(QGraphicsPixmapItem.GraphicsItemFlag.ItemIsMovable |
                     QGraphicsPixmapItem.GraphicsItemFlag.ItemIsSelectable)
+        self.item.setDefaultTextColor(self.text_color)
         self.add_item(self.item)
 
     def set_text(self, text):
@@ -108,6 +182,10 @@ class Text(Layer):
     def set_font(self, font):
         self.font = font
         self.item.setFont(self.font)
+
+    def set_color(self, color):
+        self.text_color = color
+        self.item.setDefaultTextColor(self.text_color)
 
 class LayerManager:
     """Управляет всеми слоями документа"""

@@ -1,58 +1,139 @@
 import sys, math
 from PyQt6 import uic
-from PyQt6.QtWidgets import QApplication, QMainWindow, QFileDialog, QDialog, QMessageBox, QTextEdit, QFontComboBox, QSpinBox
-from PyQt6.QtGui import QPixmap, QPalette, QColor
+from PyQt6.QtWidgets import (QApplication, QMainWindow, QFileDialog, QDialog, 
+                             QMessageBox, QTextEdit, QFontComboBox, QSpinBox,
+                             QWidget, QVBoxLayout, QListWidgetItem, QLabel, QColorDialog,
+                             QPushButton)
+from PyQt6.QtGui import QPixmap, QIcon, QColor
 from document import Document
-from tools import Hand, Editor
-from PyQt6.QtCore import QRectF, Qt
+from tools import Hand, Editor, BrushTool
+from PyQt6.QtCore import QRectF, Qt, QSize
 
 from superqt import QFlowLayout
 from colorpicker import ColorPicker
+from ui.widgets.bar import MyBar
+from ui.widgets.layer_item import LayerItem
 
 class AppWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         uic.loadUi("ui/main.ui", self)
 
+        # убираем системную рамку
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
+
+        # и ставим кастомную шапку
+        container = QWidget()
+        layout = QVBoxLayout(container)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        self.titlebar = MyBar(self)
+        layout.addWidget(self.titlebar)
+
+        # теперь добавляем основное содержимое в центральный виджет
+        main = QWidget()
+        main_layout = QVBoxLayout(main)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.addWidget(self.centralWidget())
+        layout.addWidget(main)
+        self.setCentralWidget(container)
+        self.titlebar.setParent(self)
+        self.titlebar.move(0, 0)
+        self.titlebar.raise_()
+        self.setContentsMargins(0, self.titlebar.height(), 0, 0)
+
         self.documents = [] # Список документов
 
         # Событие переключения и закрытия вкладки
         self.tabWidget.currentChanged.connect(self.on_tab_changed)
-        self.tabWidget.tabCloseRequested.connect(self.closeDoc) # self.tabWidget.removeTab
+        self.tabWidget.tabCloseRequested.connect(self.closeDoc)
 
+        # кастомный колорпикер 
         self.picker = ColorPicker()
+        self.picker.colorChanged.connect(self.set_color_to_active)
         self.gridLayout_5.addWidget(self.picker, 0, 0)
 
-        # Кнопка добавления слоя
-        if hasattr(self, "btnAddLayer"):
-            self.btnAddLayer.clicked.connect(self.add_layer_to_active)
-        self.btnAddImage.clicked.connect(self.add_image_layer_to_active)
+        # Слоты
+        self.btnAddLayer.clicked.connect(self.add_layer_to_active)
+        self.btnAddImg.clicked.connect(self.add_image_layer_to_active)
         self.btnDeleteLayer.clicked.connect(self.delete_layer)
         self.btnUpLayer.clicked.connect(self.replace_layer)
         self.btnDownLayer.clicked.connect(self.replace_layer)
         self.btnSettingsLayer.clicked.connect(self.open_layer_settings)
+        self.btnAddTxt.clicked.connect(self.add_text_layer_to_active)
+        self.checkBoxLock.stateChanged.connect(self.lock_layer)
+        self.spinBoxOpacity.valueChanged.connect(self.opacity_layer)
+        self.brushSize.valueChanged.connect(self.change_brush)
 
-        self.loolsGroup.buttonClicked.connect(self.changeTool)
-
+        # Менюбар
         self.saveAct.triggered.connect(self.saveDoc)
         self.addAct.triggered.connect(self.add_image_layer_to_active)
         self.newAct.triggered.connect(self.newDoc)
+        self.actionClose.triggered.connect(lambda: self.closeDoc(self.listLayers.currentRow()))
+        self.actionCloseAll.triggered.connect(self.closeAll)
+        self.actionExit.triggered.connect(self.close)
+        self.actionGetComposite.triggered.connect(self.add_composite_layer)
+        self.actionAddEmptyLayer.triggered.connect(self.add_empty_layer)
 
+        # Инструменты
+        self.actionHand.triggered.connect(self.changeTool)
+        self.actionMoveTool.triggered.connect(self.changeTool)
+        self.actionBrush.triggered.connect(self.changeTool)
+        self.actionErasier.triggered.connect(self.changeTool)
+
+        # Иконки
+        self.actionHand.setIcon(QIcon("ui\\icons\\hand.svg"))
+        self.actionBrush.setIcon(QIcon("ui\\icons\\brush.svg"))
+        self.actionMoveTool.setIcon(QIcon("ui\\icons\\move.svg"))
+        self.btnDeleteLayer.setIcon(QIcon("ui\\icons\\bin.svg"))
+        self.btnUpLayer.setIcon(QIcon("ui\\icons\\up.svg"))
+        self.btnDownLayer.setIcon(QIcon("ui\\icons\\down.svg"))
+        self.btnAddLayer.setIcon(QIcon("ui\\icons\\plus.svg"))
+        self.btnSettingsLayer.setIcon(QIcon("ui\\icons\\settings.svg"))
+        self.btnAddTxt.setIcon(QIcon("ui\\icons\\text.svg"))
+        self.btnAddImg.setIcon(QIcon("ui\\icons\\image.svg"))
+        self.titlebar.title.setPixmap(QPixmap("ui\\icons\\logo.svg").scaledToHeight(18))
+
+        # Чтобы выделение слоя не пропадало
         self.listLayers.selectionModel().selectionChanged.connect(self.on_selection_changed)
 
+        self.label_3.hide()
+        self.brushSize.hide()
+
     def on_selection_changed(self, selected, deselected):
-        if not self.listLayers.selectedItems() and self.listLayers.count() > 0:
-            # Если выделение исчезло — вернуть предыдущее
-            self.listLayers.setCurrentRow(0)
+        try:
+            if self.listLayers.currentRow() == -1 and self.listLayers.count() > 0:
+                # Если выделение исчезло — вернуть предыдущее
+                pass#self.listLayers.setCurrentRow(0)
+            doc = self.get_active_document()
+            layer = doc.get_layer(self.listLayers.currentRow())
+            self.spinBoxOpacity.setValue(int(layer.opacity*100))
+            self.checkBoxLock.setChecked(layer.locked)
+            doc.active_layer = layer
+        except AttributeError:
+            pass
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.titlebar.setFixedWidth(self.width())
+
+    def exit(self):
+        try:
+            self.closeEvent
+        except AttributeError:
+            pass
+
+    def closeAll(self):
+        for i in range(len(self.documents) - 1, -1, -1):
+            self.closeDoc(i)
 
     def closeEvent(self, event):
-        """Перехватывает закрытие главного окна"""
-        # если нет документов — просто закрываем
+        """если закрыл окно и не сохранил"""
         if not self.documents:
             event.accept()
             return
 
-        # проходим по всем документам
+        # не помню зачем инвертируем список, но вроде очень надо
         for i in range(len(self.documents) - 1, -1, -1):
             dlg = QMessageBox(self)
             dlg.setWindowTitle("Закрытие документа")
@@ -71,13 +152,10 @@ class AppWindow(QMainWindow):
                 # отменяем закрытие всего приложения
                 event.ignore()
                 return
-            # если Discard — просто удаляем
+
             self.documents.pop(i)
             self.tabWidget.removeTab(i)
-
-        # если цикл завершился — разрешаем закрытие
         event.accept()
-
 
     def closeDoc(self, index):
         dlg = QMessageBox(self)
@@ -114,29 +192,64 @@ class AppWindow(QMainWindow):
             self.add_new_document(
                 data["name"],
                 data["width"],
-                data["height"],
-                bg_color
+                data["height"]
             )
+            doc = self.get_active_document()
+            doc.add_solid_layer("Bg", locked=True, color=bg_color)
+            self.update_layer_list(doc)
+            self.listLayers.setCurrentRow(0)
 
     def saveDoc(self, doc=None):
         if not doc:
             doc = self.get_active_document()
         doc.export_area(f"{doc.name}.png", QRectF(0, 0, doc.width, doc.height))
 
+    def change_brush(self, value):
+        doc = self.get_active_document()
+        doc.brush.width = value
+
     def changeTool(self, button):
         doc = self.get_active_document()
-        if button is self.toolHand:
+        self.label_3.hide()
+        self.brushSize.hide()
+        if self.sender() is self.actionHand:
             doc.changeTool(Hand())
-        else:
+            self.label_4.setText("Hand")
+        elif self.sender() is self.actionMoveTool:
             doc.changeTool(Editor())
+            self.label_4.setText("Move tool")
+        elif self.sender() is self.actionBrush or self.sender() is self.actionErasier:
+            doc.changeTool(doc.brush)
+            self.label_4.setText("Brush")
+            self.label_3.show()
+            self.brushSize.show()
+        doc.erasier = self.sender() is self.actionErasier
 
-    def add_new_document(self, name, w, h, bg):
+    def add_new_document(self, name, w, h):
         """Создает и добавляет новый документ как вкладку."""
-        doc = Document(name, w, h, bg)
+        doc = Document(name, w, h)
         self.documents.append(doc)
         self.tabWidget.addTab(doc, name)
         self.tabWidget.setCurrentWidget(doc)
-        self.picker.setRGB(doc.color)
+        self.picker.setRGB(doc.color.getRgb()[:-1])
+        self.update_layer_list(doc)
+
+    def set_color_to_active(self):
+        try:
+            doc = self.get_active_document()
+            doc.color = QColor(*list(map(int, self.picker.getRGB())))
+        except AttributeError:
+            pass
+
+    def add_empty_layer(self):
+        doc = self.get_active_document()
+        doc.add_layer("Empty")
+        self.update_layer_list(doc)
+
+    def add_composite_layer(self):
+        doc = self.get_active_document()
+        composite = doc.get_composite()
+        doc.add_pixmap_layer("Composite", composite)
         self.update_layer_list(doc)
 
     def get_active_document(self):
@@ -154,11 +267,16 @@ class AppWindow(QMainWindow):
             doc.add_solid_layer(f"Слой {len(doc.layers._layers)}")
             self.update_layer_list(doc)
 
+    def add_text_layer_to_active(self):
+        doc = self.get_active_document()
+        doc.add_text_layer("Lorem ipsum", "Lorem ipsum")
+        self.update_layer_list(doc)
+
     def add_image_layer_to_active(self):
         doc = self.get_active_document()
         filename, _ = QFileDialog.getOpenFileName(self, "Выбрать изображение", "", "Images (*.png *.jpg *.bmp)")
         if not filename:
-            return  # пользователь отменил
+            return
         
         pixmap = QPixmap(filename)
         doc.add_pixmap_layer(filename.split('/')[-1], pixmap)
@@ -184,6 +302,7 @@ class AppWindow(QMainWindow):
                     layer.set_text(data["text"])
                 if data["font"]:
                     layer.set_font(data["font"])
+                layer.set_color(data["color"])
             except KeyError:
                 pass
 
@@ -193,22 +312,88 @@ class AppWindow(QMainWindow):
     def update_layer_list(self, doc, direction=0):
         """Обновляет список слоев (listLayers) в интерфейсе для конкретного документа."""
         current = self.listLayers.currentRow()
-        if hasattr(self, "listLayers"):
-            self.listLayers.clear()
-            self.listLayers.addItems(doc.layers.list_layers())
-        
+        self.listLayers.clear()
+        for layer in doc.layers._layers[::-1]:
+            if layer is doc.bg_layer:
+                continue
+            item = QListWidgetItem()
+            widget = LayerItem(layer.name, layer.visible, layer.locked)
+            item.setSizeHint(widget.sizeHint())
+            self.listLayers.addItem(item)
+            self.listLayers.setItemWidget(item, widget)
+            if hasattr(widget, "lock"):
+                widget.lock.setPixmap(QPixmap("ui\\icons\\lock.svg").scaledToHeight(13))
+            preview = layer.get_preview(QSize(32, 32))
+            widget.icon = QLabel()
+            widget.icon.setPixmap(preview)
+            widget.layout.insertWidget(1, widget.icon)
+            widget.toggled.connect(self.on_layer_toggled)
+            widget.nameChanged.connect(self.on_layer_renamed)
+            widget.settingsOpened.connect(self.on_layer_settings)
+
         if current != -1 and current < self.listLayers.count():
-            self.listLayers.setCurrentRow(current+direction)
+            self.listLayers.setCurrentRow(current+(direction*2)-1)
         elif self.listLayers.count() > 0:
             self.listLayers.setCurrentRow(0)
 
+    def on_layer_toggled(self, widget, visible):
+        # находим элемент списка, которому принадлежит этот widget
+        for i in range(self.listLayers.count()):
+            if self.listLayers.itemWidget(self.listLayers.item(i)) == widget:
+                self.listLayers.setCurrentRow(i)  # <-- выделяем его!
+                break
+
+        # и теперь можно обновить видимость слоя
+        # self.toggle_layer_visibility(widget.label.text(), visible)
+        doc = self.get_active_document()
+        layer = doc.get_layer(self.listLayers.currentRow())
+        if layer.name != "Background":
+            layer.set_visible(visible)
+        else:
+            widget.checkbox.setChecked(True)
+
+    def on_layer_renamed(self, widget, new_name):
+        doc = self.get_active_document()
+        layer = doc.get_layer(self.listLayers.currentRow())
+        if layer.name != "Background":
+            layer.set_name(new_name)
+            self.update_layer_list(doc)
+
+    def on_layer_settings(self, widget):
+        self.open_layer_settings()
+
+    def opacity_layer(self, value):
+        doc = self.get_active_document()
+        current = self.listLayers.currentRow()
+        layer = doc.get_layer(current)
+        if layer.name != "Background":
+            layer.set_opacity(value/100)
+        item = self.listLayers.item(current)
+        widget = self.listLayers.itemWidget(item)
+        preview = layer.get_preview(QSize(32, 32))
+        widget.icon.setPixmap(preview)
+
+    def lock_layer(self, state):
+        doc = self.get_active_document()
+        current = self.listLayers.currentRow()
+        layer = doc.get_layer(current)
+        layer.set_locked(state)
+            # обновляем только нужный item
+        item = self.listLayers.item(current)
+        widget = self.listLayers.itemWidget(item)
+        if state:
+            widget.lock.show()
+            widget.label.setStyleSheet("background: none; font-style: italic;")
+        else:
+            widget.lock.hide()
+            widget.label.setStyleSheet("background: none; font-style: normal;")
+        #self.listLayers.setCurrentRow(current)
 
     def replace_layer(self):
         try:
             doc = self.get_active_document()
             direction = self.sender().text() == "Up"
             doc.move_layer(self.listLayers.currentRow(), direction)
-            print(1-direction)
             self.update_layer_list(doc, 1-direction)
         except IndexError:
             dlg = QMessageBox(self)
@@ -247,12 +432,11 @@ class SecondForm(QDialog):
         self.spinBox.valueChanged.connect(self.on_spinbox_value_changed)
         self.spinBox_2.valueChanged.connect(self.on_spinbox_value_changed)
 
-        self.comboBox.addItems(["Transparent", "White", "Red", "Black"])
+        self.comboBox.addItems(["White", "Transparent", "Red", "Black"])
 
     def on_spinbox_value_changed(self, value):
         width = self.spinBox.value()
         height = self.spinBox_2.value()
-        print(self.comboBox.currentText())
 
         # если фиксируем соотношение сторон
         if self.checkBox.isChecked():
@@ -304,7 +488,8 @@ class SettingsForm(QDialog):
         if self.layer.type == "Text":
             self.edit = QTextEdit()
             self.edit.setText(self.layer.text)
-            self.gridLayout_5.addWidget(self.edit, 0, 1)
+            self.gridLayout_5.addWidget(self.edit, 0, 1, 3, 1)
+            self.col = self.layer.text_color
 
             self.fontBox = QFontComboBox()
             try:
@@ -321,6 +506,12 @@ class SettingsForm(QDialog):
             except:
                 self.fontSize.setValue(12)
             self.gridLayout_5.addWidget(self.fontSize, 1, 0)
+            self.button = QPushButton("Select color")
+            self.button.setStyleSheet("color: rgba%s" 
+                                   % str(self.layer.text_color.getRgb()))
+            self.button.clicked.connect(self.showDialog)
+            self.gridLayout_5.addWidget(self.button, 2, 0)
+
 
         # связываем кнопки
         self.buttonBox.accepted.connect(self.accept)
@@ -344,6 +535,13 @@ class SettingsForm(QDialog):
 
         self.label_3.setText(f"Opacity: {int(self.layer.opacity*100)}%")
 
+    def showDialog(self):
+        self.col = QColorDialog.getColor()
+        if self.col.isValid():
+            self.button.setStyleSheet("color: rgba%s" 
+                                   % str(self.col.getRgb()))
+        
+
     def value_changed(self):
         self.label_3.setText(f"Opacity: {self.horizontalSlider.value()}%")
 
@@ -362,6 +560,7 @@ class SettingsForm(QDialog):
             font.setPixelSize(self.fontSize.value())
             out["text"] = self.edit.toPlainText()
             out["font"] = font
+            out["color"] = self.col
 
         return out
 
@@ -369,9 +568,6 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     with open("ui\\dark.qss", "r") as f:
         app.setStyleSheet(f.read())
-    #palette = app.palette()
-    #palette.setColor(QPalette.ColorRole.Window, QColor("#2b2b2b"))
-    #app.setPalette(palette)
     window = AppWindow()
     window.show()
     sys.exit(app.exec())

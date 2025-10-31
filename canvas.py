@@ -4,7 +4,7 @@ from PyQt6.QtGui import QWheelEvent, QPainter, QBrush, QColor
 
 
 class CanvasView(QGraphicsView):
-    def __init__(self, scene):
+    def __init__(self, scene, doc):
         super().__init__(scene)
         self.setRenderHint(QPainter.RenderHint.Antialiasing)
         self.setBackgroundBrush(QBrush(QColor("#252525")))
@@ -12,6 +12,7 @@ class CanvasView(QGraphicsView):
 
         self._zoom_factor = 1.15  # коэффициент масштабирования
         self._current_zoom = 1.0  # текущий масштаб
+        self.doc = doc
 
     def wheelEvent(self, event):
         """Scaling by Ctrl+Alt+Wheel"""
@@ -32,6 +33,28 @@ class CanvasView(QGraphicsView):
             self.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
         else:
             self.setDragMode(QGraphicsView.DragMode.NoDrag)
+    
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton and self.doc.active_layer:
+            self.drawing = True
+            self.last_pos = self.mapToScene(event.pos()).toPoint()
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        if self.drawing and self.doc.active_layer.type == "Image" and self.doc.activeTool.type == "Brush":
+            color = self.doc.color
+            pos = self.mapToScene(event.pos()).toPoint()
+            self.doc.active_layer.draw_line(self.last_pos, pos, color, width=self.doc.brush.width, erase=self.doc.erasier)
+            self.last_pos = pos  # продолжение линии без перерисовки
+        elif self.doc.activeTool.type == "Editor":
+            super().mouseMoveEvent(event)
+        elif self.doc.activeTool.type == "Hand":
+            super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.drawing = False
+        super().mouseReleaseEvent(event)
 
 
 class CanvasScene(QGraphicsScene):

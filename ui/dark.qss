@@ -291,6 +291,7 @@ QScrollBar::handle:horizontal {
     background: #555;
     border-radius: 7px;
     min-height: 20px;
+    min-width: 20px;
 }
 
 QScrollBar::handle:hover {
@@ -344,4 +345,29 @@ QCheckBox::indicator:unchecked,
 QRadioButton::indicator:unchecked {
     background-color: #3a3a3a;
     border: 1px solid #5a5a5a;
+}
+
+#checkBoxLock::indicator {
+    border: none;
+    background: none;
+    image: url(./ui/icons/lock.svg);
+}
+
+#checkBoxLock::indicator:checked {
+    border: none;
+    background: none;
+    image: url(./ui/icons/unlock.svg);
+}
+
+#checkBoxVisible::indicator:unchecked {
+    border: 1px solid #5a5a5a;
+    background-color: #3a3a3a;
+    image: none;
+    /*url(./ui/icons/not-eye.svg);*/
+}
+
+#checkBoxVisible::indicator:checked {
+    border: none;
+    background: none;
+    image: url(./ui/icons/eye.svg);
 }
