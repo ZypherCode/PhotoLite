@@ -1,11 +1,12 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
-*.py[codz]
+#*.py[codz]
 *$py.class
 
 # other
 pyvenv.cfg
 *.png
+test.py
 
 # C extensions
 *.so

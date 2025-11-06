@@ -4,8 +4,11 @@
 # Edited by GiorgosXou for Qt6 Support. #
 #                                       #
 # Version 1.3                           #
-# made with Qt Creator & PyQt5          #
+# made with Qt Creator & PyQt5          #  
 #                                       #
+# Дронов М. своими руками фиксил        #
+# баги в этом куске чужого кода, и без  #
+# его поправок эта либа не работает :)  #
 # ------------------------------------- #
 
 import sys

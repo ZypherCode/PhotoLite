@@ -1,5 +1,6 @@
-from PyQt6.QtWidgets import QWidget, QLabel, QPushButton, QHBoxLayout, QSizePolicy
+from PyQt6.QtWidgets import QWidget, QLabel, QPushButton, QHBoxLayout, QSizePolicy, QToolButton
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QIcon
 
 class MyBar(QWidget):
     def __init__(self, parent=None):
@@ -25,34 +26,37 @@ class MyBar(QWidget):
         self.layout.addStretch()
 
         # Кнопка свернуть
-        btn_min = QPushButton("—")
+        btn_min = QToolButton()
+        btn_min.setIcon(QIcon("ui\\icons\\underline.svg"))
         btn_min.setFixedSize(24, 24)
         btn_min.clicked.connect(lambda: self.parent.showMinimized())
         self.layout.addWidget(btn_min)
 
         # Кнопка развернуть / восстановить
-        self.btn_max = QPushButton("☐")
+        self.btn_max = QToolButton()
         self.btn_max.setFixedSize(24, 24)
+        self.btn_max.setIcon(QIcon("ui\\icons\\window.svg"))
         self.btn_max.clicked.connect(self.toggle_max_restore)
         self.layout.addWidget(self.btn_max)
 
         # Кнопка закрыть
-        btn_close = QPushButton("✕")
-        btn_close.setFixedSize(24, 24)
-        btn_close.clicked.connect(lambda: self.parent.close())
-        self.layout.addWidget(btn_close)
+        self.btn_close = QToolButton()
+        self.btn_close.setFixedSize(24, 24)
+        self.btn_close.setIcon(QIcon("ui\\icons\\icons8-close.svg"))
+        self.btn_close.clicked.connect(lambda: self.parent.close())
+        self.layout.addWidget(self.btn_close)
 
         # Внутри MyBar.__init__
         self.menu_bar = parent.menubar
         self.menu_bar.setStyleSheet("background: transparent; color: white;")
         self.menu_bar.setFixedHeight(24)  # по вкусу
 
-        # Добавляем в layout — допустим, между title и кнопками
+        # Добавляем в layout - допустим, между title и кнопками
         self.layout.insertWidget(1, self.menu_bar)
 
 
         # Минималистичный стиль кнопок
-        for btn in (btn_min, self.btn_max, btn_close):
+        for btn in (btn_min, self.btn_max, self.btn_close):
             btn.setStyleSheet("""
                 QPushButton {
                     background-color: transparent;
@@ -83,7 +87,7 @@ class MyBar(QWidget):
         """Разворачивает/восстанавливает окно"""
         if self.parent.isMaximized():
             self.parent.showNormal()
-            self.btn_max.setText("☐")
+            self.btn_max.setIcon(QIcon("ui\\icons\\window.svg"))
         else:
             self.parent.showMaximized()
-            self.btn_max.setText("🗗")
+            self.btn_max.setIcon(QIcon("ui\\icons\\windows.svg"))

@@ -14,7 +14,7 @@ class Document(QWidget):
         self.name = name
         self.width = width
         self.height = height
-        self.activeTool = Editor
+        self.activeTool = Editor()
         self.brush = BrushTool()
         self.color = QColor(255, 0, 0)
         self.erasier = False

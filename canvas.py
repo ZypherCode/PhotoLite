@@ -1,6 +1,6 @@
-from PyQt6.QtWidgets import QGraphicsView, QGraphicsScene
+from PyQt6.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsEllipseItem
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QWheelEvent, QPainter, QBrush, QColor
+from PyQt6.QtGui import QWheelEvent, QPainter, QBrush, QColor, QPen
 
 
 class CanvasView(QGraphicsView):
@@ -9,10 +9,18 @@ class CanvasView(QGraphicsView):
         self.setRenderHint(QPainter.RenderHint.Antialiasing)
         self.setBackgroundBrush(QBrush(QColor("#252525")))
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.setMouseTracking(True)
 
         self._zoom_factor = 1.15  # коэффициент масштабирования
         self._current_zoom = 1.0  # текущий масштаб
         self.doc = doc
+        self.drawing = False
+
+        self.brush_preview = QGraphicsEllipseItem()
+        self.brush_preview.setPen(QPen(Qt.GlobalColor.darkGray, 2, Qt.DashLine))
+        #self.brush_preview.setBrush(Qt.BrushStyle.NoBrush)
+        self.brush_preview.setZValue(1500)
+        doc.scene.addItem(self.brush_preview)
 
     def wheelEvent(self, event):
         """Scaling by Ctrl+Alt+Wheel"""
@@ -41,11 +49,17 @@ class CanvasView(QGraphicsView):
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
-        if self.drawing and self.doc.active_layer.type == "Image" and self.doc.activeTool.type == "Brush":
+        if not hasattr(self.doc.activeTool, "type"):
+            return
+        if self.doc.active_layer.type == "Image" and self.doc.activeTool.type == "Brush":
             color = self.doc.color
             pos = self.mapToScene(event.pos()).toPoint()
-            self.doc.active_layer.draw_line(self.last_pos, pos, color, width=self.doc.brush.width, erase=self.doc.erasier)
-            self.last_pos = pos  # продолжение линии без перерисовки
+            width = self.doc.brush.width
+            r = width / 2
+            self.brush_preview.setRect(pos.x() - width, pos.y() - width, width*2, width*2)
+            if self.drawing:
+                self.doc.active_layer.draw_line(self.last_pos, pos, color, width=self.doc.brush.width, erase=self.doc.erasier)
+                self.last_pos = pos  # продолжение линии без перерисовки
         elif self.doc.activeTool.type == "Editor":
             super().mouseMoveEvent(event)
         elif self.doc.activeTool.type == "Hand":

@@ -1,8 +1,9 @@
-from PyQt6.QtWidgets import QGraphicsItemGroup, QGraphicsRectItem, QGraphicsTextItem
+from PyQt6.QtWidgets import QGraphicsItemGroup, QGraphicsRectItem, QGraphicsTextItem, QGraphicsEffect
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import QGraphicsPixmapItem
-from PyQt6.QtGui import QBrush, QPen, QPainter, QImage, QFontMetrics, QColor, QFont
-from PyQt6.QtCore import Qt, QSize, QRectF
+from PyQt6.QtGui import QBrush, QPen, QPainter, QImage, QFontMetrics, QColor, QFont, QRadialGradient, QPainterPath
+from PyQt6.QtCore import Qt, QSize, QRectF, QPoint
+import math
 
 
 class Layer:
@@ -76,7 +77,7 @@ class Layer:
                 color = QColor(200, 200, 200) if (x // cell + y // cell) % 2 == 0 else QColor(240, 240, 240)
                 painter.fillRect(x, y, cell, cell, color)
 
-        # Если слой невидим — делаем полупрозрачный
+        # Если слой невидим - делаем полупрозрачный
         if not self.visible:
             painter.setOpacity(0.3)
         else:
@@ -118,44 +119,78 @@ class Solid(Layer):
         rect_item.setZValue(100000)  # чтобы фон был под всем остальным
         self.add_item(rect_item)
 
+from PyQt6.QtGui import QPainter, QPen, QColor
+from PyQt6.QtCore import Qt
+
+
 class Image(Layer):
     def __init__(self, name, scene, pixmap, width=1920, height=1080, z_value=1):
         super().__init__(name, scene, None, width, height, z_value)
-
-        self.scale = 100
         self.type = "Image"
         self.pixmap = pixmap
+        self.blend_mode = QPainter.CompositionMode.CompositionMode_SourceOver  # по умолчанию - обычное рисование
 
         self.item = QGraphicsPixmapItem(pixmap)
         self.item.setFlags(QGraphicsPixmapItem.GraphicsItemFlag.ItemIsMovable |
-                    QGraphicsPixmapItem.GraphicsItemFlag.ItemIsSelectable)
+                           QGraphicsPixmapItem.GraphicsItemFlag.ItemIsSelectable)
         self.add_item(self.item)
 
-    def draw_line(self, p1, p2, color, width=3, erase=False):
-        """Рисует прямо в pixmap, не пересоздавая его"""
+    def draw_line(self, p1, p2, color: QColor, width=20, erase=False, hardness=0, start_alpha=255):
+        """Плавное рисование кистью или ластиком с регулируемой жёсткостью и альфой."""
         if self.locked:
             return
 
+        # Подготовка цвета
+        r, g, b = color.red(), color.green(), color.blue()
+        h = hardness / 100.0
+        a0 = start_alpha
+        a1 = int(a0 * h)  # альфа на краю
+
+        # Создание радиального градиента
+        gradient = QRadialGradient(width, width, width)
+        if erase:
+            gradient.setColorAt(0.0, QColor(0, 0, 0, a0))
+            gradient.setColorAt(h,   QColor(0, 0, 0, a0))
+            gradient.setColorAt(1.0, QColor(0, 0, 0, a1))
+        else:
+            gradient.setColorAt(0.0, QColor(r, g, b, a0))
+            gradient.setColorAt(h,   QColor(r, g, b, a0))
+            gradient.setColorAt(1.0, QColor(r, g, b, a1))
+
+        brush = QBrush(gradient)
+
+        # Настраиваем painter
         painter = QPainter(self.pixmap)
+        #painter.setOpacity(start_alpha / 255)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setPen(Qt.PenStyle.NoPen)
 
         if erase:
-            # ВАЖНО: включаем режим стирания (делает пиксели прозрачными)
-            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
-            pen = QPen(Qt.GlobalColor.transparent)
+            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_DestinationOut)
         else:
             painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
-            pen = QPen(color)
 
-        pen.setWidth(width)
-        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-        painter.setPen(pen)
+        # Расстояние между точками
+        dx = p2.x() - p1.x()
+        dy = p2.y() - p1.y()
+        dist = math.hypot(dx, dy)
+        steps = int(dist / 100) + 1
 
-        painter.drawLine(p1, p2)
+        # Рисуем плавно
+        for i in range(steps):
+            t = i / steps
+            x = p1.x() + dx * t
+            y = p1.y() + dy * t
+            painter.save()
+            painter.translate(x - width, y - width)
+            painter.setBrush(brush)
+            painter.drawEllipse(0, 0, width * 2, width * 2)
+            painter.restore()
+
         painter.end()
 
-        # Обновляем виджет, если нужно
-        self.item.setPixmap(self.pixmap)
+        if self.item:
+            self.item.setPixmap(self.pixmap)
 
 class Text(Layer):
     def __init__(self, name, scene, color=QColor(0, 0, 0), text="Lorem ipsum", z_value=0):
