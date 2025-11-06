@@ -86,7 +86,6 @@ class Document(QWidget):
 
     def add_bg_layer(self):
         """Добавляет слой-фон с шахматками для прозрачности"""
-        # создаём pixmap шахматного паттерна
         checker = QPixmap(20, 20)
         checker.fill(QColor("lightGray"))
         painter = QPainter(checker)
@@ -97,14 +96,13 @@ class Document(QWidget):
         bg_brush = QBrush(checker)
         rect_item = QGraphicsRectItem(self.scene.sceneRect())
         rect_item.setBrush(bg_brush)
-        rect_item.setZValue(-1)  # всегда самый низ
+        rect_item.setZValue(-1) 
         self.scene.addItem(rect_item)
 
-        # создаём слой для совместимости с остальными слоями
         self.bg_layer = Layer("Background", self.scene, Qt.GlobalColor.transparent, self.width, self.height)
         self.bg_layer.group.addToGroup(rect_item)
         self.bg_layer.set_locked(True)
-        self.layers.add_layer(layer=self.bg_layer)  # ставим первым слоем
+        self.layers.add_layer(layer=self.bg_layer) 
         self.bg_item = rect_item  # храним ссылку, чтобы скрывать при экспорте
 
     def add_layer(self, name, color=None):
