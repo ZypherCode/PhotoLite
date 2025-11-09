@@ -17,7 +17,7 @@ class CanvasView(QGraphicsView):
         self.drawing = False
 
         self.brush_preview = QGraphicsEllipseItem()
-        self.brush_preview.setPen(QPen(Qt.GlobalColor.darkGray, 2, Qt.DashLine))
+        self.brush_preview.setPen(QPen(Qt.GlobalColor.darkGray, 2, Qt.PenStyle.DashLine))
         self.brush_preview.setZValue(1500)
         doc.scene.addItem(self.brush_preview)
 

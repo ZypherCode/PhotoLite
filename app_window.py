@@ -6,12 +6,14 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QFileDialog, QDialog,
                              QPushButton)
 from PyQt6.QtGui import QPixmap, QIcon, QColor
 from document import Document
-from tools import Hand, Editor, BrushTool
+from tools import Hand, Editor
 from PyQt6.QtCore import QRectF, Qt, QSize, QTimer
 
 from colorpicker import ColorPicker
 from ui.widgets.bar import MyBar
 from ui.widgets.layer_item import LayerItem
+from file_logic import SaveDoc, OpenDoc, NotCorrectFolder
+
 
 class AppWindow(QMainWindow):
     def __init__(self):
@@ -64,6 +66,7 @@ class AppWindow(QMainWindow):
 
         # Менюбар
         self.saveAct.triggered.connect(self.saveDoc)
+        self.openAct.triggered.connect(self.openDoc)
         self.addAct.triggered.connect(self.add_image_layer_to_active)
         self.newAct.triggered.connect(self.newDoc)
         self.actionClose.triggered.connect(lambda: self.closeDoc(self.listLayers.currentRow()))
@@ -193,6 +196,27 @@ class AppWindow(QMainWindow):
         self.tabWidget.removeTab(index)
         self.listLayers.clear()
 
+    def openDoc(self):
+        dialog = QFileDialog()
+        dirname = dialog.getExistingDirectory(self, "Choose catalog", ".")
+        if not dirname:
+            return
+        try:
+            dc = OpenDoc(dirname)
+            doc = dc.get_opened_document()
+            self.documents.append(doc)
+            self.tabWidget.addTab(doc, doc.name)
+            self.tabWidget.setCurrentWidget(doc)
+            self.picker.setRGB(doc.color.getRgb()[:-1])
+            self.update_layer_list(doc)
+        except NotCorrectFolder:
+            dlg = QMessageBox(self)
+            dlg.setWindowTitle("Ошибка")
+            dlg.setText(f"В папке «{dirname}» нет проекта PhotoLite!")
+            dlg.setStandardButtons(QMessageBox.StandardButton.Ok)
+            dlg.setIcon(QMessageBox.Icon.Critical)
+            button = dlg.exec()
+
     def newDoc(self):
         dialog = SecondForm(self)
         result = dialog.exec()
@@ -222,7 +246,8 @@ class AppWindow(QMainWindow):
         doc = self.get_active_document()
         if not doc:
             return
-        doc.export_area(f"{doc.name}.png", QRectF(0, 0, doc.width, doc.height))
+        SaveDoc(doc, 'D:\code\PythonProjects\PhotoLite\projects')
+        #doc.export_area(f"{doc.name}.png", QRectF(0, 0, doc.width, doc.height))
 
     def change_brush(self, value):
         doc = self.get_active_document()

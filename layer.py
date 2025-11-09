@@ -15,6 +15,8 @@ class Layer:
         self.opacity = 1.0
         self.scene = scene
         self.type = "Layer"
+        self.z_value = z_value
+        self.scale = 1.0
 
         # Создаём группу, добавляем её на сцену
         self.group = QGraphicsItemGroup()
@@ -24,6 +26,9 @@ class Layer:
     # === Методы управления ===
     def delete(self):
         self.scene.removeItem(self.group)
+
+    def pos(self):
+        return self.group.pos()
         
     def set_scale(self, scale):
         self.group.setScale(scale)
@@ -110,7 +115,7 @@ class Solid(Layer):
         self.width = width
         self.height = height
         self.type = "Solid"
-        self.solid_color = bgcolor
+        self.solid_color = QColor(bgcolor)
 
         # Добавляем фоновый прямоугольник
         rect_item = QGraphicsRectItem(0, 0, self.width, self.height)
@@ -201,7 +206,7 @@ class Text(Layer):
         self.text = text
         self.font = QFont("Arial")
         self.font.setPixelSize(150)
-        self.text_color = color
+        self.text_color = QColor(color)
 
         self.item = QGraphicsTextItem(self.text)
         self.item.setFont(self.font)

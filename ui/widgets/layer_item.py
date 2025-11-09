@@ -35,7 +35,7 @@ class LayerItem(QWidget):
 
         # --- Перехватываем двойной клик по label ---
     def eventFilter(self, source, event):
-        if source == self.label and event.type() == event.MouseButtonDblClick and self.name != "Background":
+        if source == self.label and event.type() == event.Type.MouseButtonDblClick and self.name != "Background":
             self.start_editing()
             return True
         return super().eventFilter(source, event)

@@ -8,6 +8,8 @@ from PyQt6.QtWidgets import QGraphicsRectItem
 from PyQt6.QtCore import QRectF, QSize
 from tools import BrushTool, Editor
 
+from datetime import datetime
+
 class Document(QWidget):
     def __init__(self, name="Новый документ", width=1280, height=720):
         super().__init__()
@@ -18,6 +20,7 @@ class Document(QWidget):
         self.brush = BrushTool()
         self.color = QColor(255, 0, 0)
         self.erasier = False
+        self.created = datetime.now().timestamp()
 
         # Сцена и вью
         self.scene = CanvasScene()
