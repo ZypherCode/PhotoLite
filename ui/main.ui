@@ -88,6 +88,13 @@
         </widget>
        </item>
        <item>
+        <widget class="QCheckBox" name="checkSoft">
+         <property name="text">
+          <string>Hard</string>
+         </property>
+        </widget>
+       </item>
+       <item>
         <spacer name="horizontalSpacer">
          <property name="orientation">
           <enum>Qt::Horizontal</enum>
@@ -123,13 +130,13 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>110</width>
+     <width>170</width>
      <height>21</height>
     </rect>
    </property>
    <property name="maximumSize">
     <size>
-     <width>110</width>
+     <width>170</width>
      <height>16777215</height>
     </size>
    </property>
@@ -140,6 +147,7 @@
     <addaction name="newAct"/>
     <addaction name="openAct"/>
     <addaction name="addAct"/>
+    <addaction name="actionExport"/>
     <addaction name="separator"/>
     <addaction name="saveAct"/>
     <addaction name="actionClose"/>
@@ -151,11 +159,20 @@
     <property name="title">
      <string>Слои</string>
     </property>
-    <addaction name="actionGetComposite"/>
+    <addaction name="newLayer"/>
     <addaction name="actionAddEmptyLayer"/>
+    <addaction name="separator"/>
+    <addaction name="delAct"/>
+   </widget>
+   <widget class="QMenu" name="menu_3">
+    <property name="title">
+     <string>Помощь</string>
+    </property>
+    <addaction name="aboutAct"/>
    </widget>
    <addaction name="menu"/>
    <addaction name="menu_2"/>
+   <addaction name="menu_3"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <widget class="QDockWidget" name="dockWidget">
@@ -392,7 +409,7 @@
   </action>
   <action name="addAct">
    <property name="text">
-    <string>Добавить...</string>
+    <string>Импорт...</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+Shift+O</string>
@@ -470,7 +487,10 @@
   </action>
   <action name="actionAddEmptyLayer">
    <property name="text">
-    <string>Добавить слой</string>
+    <string>Добавить пустой слой</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Alt+Shift+N</string>
    </property>
   </action>
   <action name="actionBrush">
@@ -493,6 +513,35 @@
    </property>
    <property name="shortcut">
     <string>R</string>
+   </property>
+  </action>
+  <action name="actionExport">
+   <property name="text">
+    <string>Экспорт...</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Shift+W</string>
+   </property>
+  </action>
+  <action name="newLayer">
+   <property name="text">
+    <string>Новый слой</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Shift+N</string>
+   </property>
+  </action>
+  <action name="delAct">
+   <property name="text">
+    <string>Удалить слой</string>
+   </property>
+   <property name="shortcut">
+    <string>Del</string>
+   </property>
+  </action>
+  <action name="aboutAct">
+   <property name="text">
+    <string>О программе</string>
    </property>
   </action>
  </widget>

@@ -1,9 +1,8 @@
-from PyQt6.QtWidgets import QGraphicsItemGroup, QGraphicsRectItem, QGraphicsTextItem, QGraphicsEffect
-from PyQt6.QtGui import QPixmap
-from PyQt6.QtWidgets import QGraphicsPixmapItem
-from PyQt6.QtGui import QBrush, QPen, QPainter, QImage, QFontMetrics, QColor, QFont, QRadialGradient, QPainterPath
-from PyQt6.QtCore import Qt, QSize, QRectF, QPoint
 import math
+
+from PyQt6.QtWidgets import QGraphicsItemGroup, QGraphicsRectItem, QGraphicsTextItem, QGraphicsPixmapItem
+from PyQt6.QtGui import QBrush, QPen, QPainter, QColor, QFont, QRadialGradient, QPixmap
+from PyQt6.QtCore import Qt, QSize
 
 
 class Layer:
@@ -16,7 +15,7 @@ class Layer:
         self.scene = scene
         self.type = "Layer"
         self.z_value = z_value
-        self.scale = 1.0
+        self.scale = 100
 
         # Создаём группу, добавляем её на сцену
         self.group = QGraphicsItemGroup()
@@ -148,6 +147,7 @@ class Image(Layer):
         # Подготовка цвета
         r, g, b = color.red(), color.green(), color.blue()
         h = hardness / 100.0
+        print(hardness, h)
         a0 = start_alpha
         a1 = int(a0 * h)  # альфа на краю
 
@@ -250,7 +250,6 @@ class LayerManager:
     
     def remove(self, index):
         self._layers[index].delete()
-        print(self._layers.pop(index))
 
     def move(self, index, direction):
         if direction:

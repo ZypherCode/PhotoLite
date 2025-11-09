@@ -1,18 +1,18 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QGraphicsItem
+from datetime import datetime
+
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QGraphicsRectItem
+from PyQt6.QtCore import Qt, QRectF, QSize
+from PyQt6.QtGui import QPixmap, QPainter, QBrush, QColor
+
+from tools import BrushTool, Editor
 from canvas import CanvasScene, CanvasView
 from layer import LayerManager, Layer, Solid, Image, Text
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QPixmap, QPainter
-from PyQt6.QtGui import QPixmap, QPainter, QBrush, QColor
-from PyQt6.QtWidgets import QGraphicsRectItem
-from PyQt6.QtCore import QRectF, QSize
-from tools import BrushTool, Editor
 
-from datetime import datetime
 
 class Document(QWidget):
     def __init__(self, name="Новый документ", width=1280, height=720):
         super().__init__()
+        self.version = "1.0"
         self.name = name
         self.width = width
         self.height = height
@@ -21,6 +21,7 @@ class Document(QWidget):
         self.color = QColor(255, 0, 0)
         self.erasier = False
         self.created = datetime.now().timestamp()
+        self.filepath = None
 
         # Сцена и вью
         self.scene = CanvasScene()
@@ -135,7 +136,6 @@ class Document(QWidget):
             self.bg_item.setVisible(True)  # возвращаем видимость
 
         pixmap.save(filename)
-        print(f"Экспортировано: {filename}")
 
     def get_composite(self):
         """Объединённое изображение всех видимых слоёв"""

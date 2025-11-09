@@ -56,8 +56,15 @@ class CanvasView(QGraphicsView):
             width = self.doc.brush.width
             r = width / 2
             self.brush_preview.setRect(pos.x() - width, pos.y() - width, width*2, width*2)
+            self.brush_preview.show()
+            if width <= 20:
+                self.brush_preview.setPen(QPen(Qt.GlobalColor.darkGray, 1, Qt.PenStyle.DashLine))
+            elif width <= 3:
+                self.brush_preview.hide()
+            else:
+                self.brush_preview.setPen(QPen(Qt.GlobalColor.darkGray, 2, Qt.PenStyle.DashLine))
             if self.drawing:
-                self.doc.active_layer.draw_line(self.last_pos, pos, color, width=self.doc.brush.width, erase=self.doc.erasier)
+                self.doc.active_layer.draw_line(self.last_pos, pos, color, width=self.doc.brush.width, erase=self.doc.erasier, hardness=self.doc.brush.hardness)
                 self.last_pos = pos  # продолжение линии без перерисовки
         elif self.doc.activeTool.type == "Editor":
             super().mouseMoveEvent(event)

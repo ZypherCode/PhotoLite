@@ -1,5 +1,4 @@
 ## The following requirements were added by pip freeze:
-numpy==2.3.4
 packaging==25.0
 psutil==7.1.2
 PyQt6==6.9.1

@@ -1,18 +1,21 @@
-import sys, math, psutil
+import sys, psutil
+from random import randint
+
 from PyQt6 import uic
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QFileDialog, QDialog, 
-                             QMessageBox, QTextEdit, QFontComboBox, QSpinBox,
-                             QWidget, QVBoxLayout, QListWidgetItem, QLabel, QColorDialog,
-                             QPushButton)
+                             QMessageBox, QWidget, QVBoxLayout, QListWidgetItem, 
+                             QLabel, QProgressDialog)
 from PyQt6.QtGui import QPixmap, QIcon, QColor
-from document import Document
-from tools import Hand, Editor
 from PyQt6.QtCore import QRectF, Qt, QSize, QTimer
 
 from colorpicker import ColorPicker
+from document import Document
+from tools import Hand, Editor
+from file_logic import SaveDoc, OpenDoc, NotCorrectFolder
+
 from ui.widgets.bar import MyBar
 from ui.widgets.layer_item import LayerItem
-from file_logic import SaveDoc, OpenDoc, NotCorrectFolder
+from ui.widgets.forms import SecondForm, NewLayerForm, SettingsForm, AboutForm
 
 
 class AppWindow(QMainWindow):
@@ -63,10 +66,12 @@ class AppWindow(QMainWindow):
         self.checkBoxLock.stateChanged.connect(self.lock_layer)
         self.spinBoxOpacity.valueChanged.connect(self.opacity_layer)
         self.brushSize.valueChanged.connect(self.change_brush)
+        self.checkSoft.stateChanged.connect(self.change_hardness)
 
         # Менюбар
         self.saveAct.triggered.connect(self.saveDoc)
         self.openAct.triggered.connect(self.openDoc)
+        self.actionExport.triggered.connect(self.export)
         self.addAct.triggered.connect(self.add_image_layer_to_active)
         self.newAct.triggered.connect(self.newDoc)
         self.actionClose.triggered.connect(lambda: self.closeDoc(self.listLayers.currentRow()))
@@ -74,6 +79,9 @@ class AppWindow(QMainWindow):
         self.actionExit.triggered.connect(self.close)
         self.actionGetComposite.triggered.connect(self.add_composite_layer)
         self.actionAddEmptyLayer.triggered.connect(self.add_empty_layer)
+        self.newLayer.triggered.connect(self.add_layer_to_active)
+        self.delAct.triggered.connect(self.delete_layer)
+        self.aboutAct.triggered.connect(self.open_about)
 
         # Инструменты
         self.actionHand.triggered.connect(self.changeTool)
@@ -100,11 +108,12 @@ class AppWindow(QMainWindow):
 
         self.label_3.hide()
         self.brushSize.hide()
+        self.checkSoft.hide()
 
         self.process = psutil.Process()
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_widget)
-        self.timer.start(200)
+        self.timer.start(350)
 
     def update_widget(self):
         memory_in_bytes = self.process.memory_info().rss
@@ -179,6 +188,10 @@ class AppWindow(QMainWindow):
             self.tabWidget.removeTab(i)
         event.accept()
 
+    def open_about(self):
+        form = AboutForm(self)
+        form.show()
+
     def closeDoc(self, index):
         dlg = QMessageBox(self)
         dlg.setWindowTitle("Закрытие документа")
@@ -197,22 +210,39 @@ class AppWindow(QMainWindow):
         self.listLayers.clear()
 
     def openDoc(self):
-        dialog = QFileDialog()
-        dirname = dialog.getExistingDirectory(self, "Choose catalog", ".")
-        if not dirname:
+        filename, _ = QFileDialog.getOpenFileName(self, "Выбрать проект", "", "PhotoLite (*.pld)")
+        if not filename:
             return
         try:
-            dc = OpenDoc(dirname)
-            doc = dc.get_opened_document()
+            dc = OpenDoc(filename)
+            doc, ver = dc.get_opened_document()
+            if ver > doc.version:
+                dlg = QMessageBox(self)
+                dlg.setWindowTitle("Конфликт совместимости")
+                dlg.setText(f"""Проект «{doc.name}» создан в PhotoLite {ver}, но у вас стоит более ранняя версия {doc.version}
+Рекомендуем обновить программу или создать резервную копию, иначе Вы можете повредить проект. 
+Продолжить?""")
+                dlg.setStandardButtons(
+                    QMessageBox.StandardButton.Ok |
+                    QMessageBox.StandardButton.No
+                )
+                dlg.setDefaultButton(QMessageBox.StandardButton.No)
+                dlg.setIcon(QMessageBox.Icon.Warning)
+                button = dlg.exec()
+
+                if button == QMessageBox.StandardButton.No:
+                    return
+            
             self.documents.append(doc)
             self.tabWidget.addTab(doc, doc.name)
             self.tabWidget.setCurrentWidget(doc)
             self.picker.setRGB(doc.color.getRgb()[:-1])
             self.update_layer_list(doc)
-        except NotCorrectFolder:
+            doc.filepath = filename
+        except Exception:
             dlg = QMessageBox(self)
             dlg.setWindowTitle("Ошибка")
-            dlg.setText(f"В папке «{dirname}» нет проекта PhotoLite!")
+            dlg.setText(f"PhotoLite не удалось открыть «{filename}», так как файл поврежден или не поддерживается.")
             dlg.setStandardButtons(QMessageBox.StandardButton.Ok)
             dlg.setIcon(QMessageBox.Icon.Critical)
             button = dlg.exec()
@@ -244,16 +274,48 @@ class AppWindow(QMainWindow):
 
     def saveDoc(self, doc=None):
         doc = self.get_active_document()
+        if doc and doc.filepath:
+            dirname = doc.filepath
+        else:
+            dirname, _ = QFileDialog.getSaveFileName(self, "Save as", ".", "PhotoLite (*.pld)")
+            if not dirname:
+                return
+            doc.filepath = dirname
+
+        dlg = QProgressDialog("Сохранение...", None, 0, 100, self)
+        dlg.setWindowTitle("PhotoLite")
+        dlg.setCancelButton(None)
+        dlg.setWindowModality(Qt.WindowModality.ApplicationModal)
+        dlg.show()
+        dlg.setValue(randint(21, 37)) # Случайный прогресс. По-моему забавно :)
+
+        QApplication.processEvents()
+
+        SaveDoc(doc, dirname)
+
+        dlg.setValue(100)
+        dlg.close()
+
+    def export(self):
+        doc = self.get_active_document()
         if not doc:
             return
-        SaveDoc(doc, 'D:\code\PythonProjects\PhotoLite\projects')
-        #doc.export_area(f"{doc.name}.png", QRectF(0, 0, doc.width, doc.height))
+        filename, _ = QFileDialog.getSaveFileName(self, "Export to", ".", file_filter)
+        if not filename:
+            return
+        doc.export_area(filename, QRectF(0, 0, doc.width, doc.height))
 
     def change_brush(self, value):
         doc = self.get_active_document()
         if not doc:
             return
         doc.brush.width = value
+    
+    def change_hardness(self, state):
+        doc = self.get_active_document()
+        if not doc:
+            return
+        doc.brush.hardness = (state != 0) * 100
 
     def changeTool(self, button):
         doc = self.get_active_document()
@@ -261,6 +323,7 @@ class AppWindow(QMainWindow):
             return
         self.label_3.hide()
         self.brushSize.hide()
+        self.checkSoft.hide()
         if self.sender() is self.actionHand:
             doc.changeTool(Hand())
             self.label_4.setText("Hand")
@@ -272,6 +335,7 @@ class AppWindow(QMainWindow):
             self.label_4.setText("Brush")
             self.label_3.show()
             self.brushSize.show()
+            self.checkSoft.show()
         doc.erasier = self.sender() is self.actionErasier
 
     def add_new_document(self, name, w, h):
@@ -293,7 +357,7 @@ class AppWindow(QMainWindow):
         doc = self.get_active_document()
         if not doc:
             return
-        doc.add_layer("Empty")
+        doc.add_layer(f"Слой {len(doc.layers._layers)}")
         self.update_layer_list(doc)
 
     def add_composite_layer(self):
@@ -316,8 +380,28 @@ class AppWindow(QMainWindow):
         doc = self.get_active_document()
         if not doc:
             return
-        doc.add_solid_layer(f"Слой {len(doc.layers._layers)}")
-        self.update_layer_list(doc)
+        
+        dialog = NewLayerForm(self, f"Слой {len(doc.layers._layers)}")
+        result = dialog.exec()
+
+        if result == QDialog.DialogCode.Accepted:
+            data = dialog.get_values()
+            if data["background"] == "Transparent":
+                bg_color = Qt.GlobalColor.transparent
+            elif data["background"] == "White":
+                bg_color = Qt.GlobalColor.white
+            elif data["background"] == "Red":
+                bg_color = Qt.GlobalColor.red
+            elif data["background"] == "Black":
+                bg_color = Qt.GlobalColor.black
+
+            pixmap = QPixmap(doc.width, doc.height)
+            pixmap.fill(bg_color)
+            doc.add_pixmap_layer(data["name"], pixmap)
+            layer = doc.get_layer(0)
+            layer.set_opacity(data["opacity"] / 100)
+            self.update_layer_list(doc)
+            self.listLayers.setCurrentRow(0)
 
     def add_text_layer_to_active(self):
         doc = self.get_active_document()
@@ -328,7 +412,7 @@ class AppWindow(QMainWindow):
 
     def add_image_layer_to_active(self):
         doc = self.get_active_document()
-        filename, _ = QFileDialog.getOpenFileName(self, "Выбрать изображение", "", "Images (*.png *.jpg *.bmp *.jpeg)")
+        filename, _ = QFileDialog.getOpenFileName(self, "Выбрать изображение", "", "Images (*.png *.jpg *.bmp *.jpeg *.gif *.pbm *.pgm *.ppm *.xbm *.xpm)")
         if not filename:
             return
         
@@ -475,6 +559,7 @@ class AppWindow(QMainWindow):
                 return
             doc.remove_layer(self.listLayers.currentRow())
             self.update_layer_list(doc)
+            self.listLayers.setCurrentRow(0)
         except IndexError:
             dlg = QMessageBox(self)
             dlg.setWindowTitle("Layer not selected!")
@@ -487,151 +572,19 @@ class AppWindow(QMainWindow):
         if doc:
             self.update_layer_list(doc)
 
-class SecondForm(QDialog):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        uic.loadUi("ui/new.ui", self)
 
-        self.setWindowFlag(Qt.WindowType.MSWindowsFixedSizeDialogHint)
-
-        # связываем кнопки
-        self.buttonBox.accepted.connect(self.accept)
-        self.buttonBox.rejected.connect(self.reject)
-
-        self.spinBox.valueChanged.connect(self.on_spinbox_value_changed)
-        self.spinBox_2.valueChanged.connect(self.on_spinbox_value_changed)
-
-        self.comboBox.addItems(["White", "Transparent", "Red", "Black"])
-
-    def on_spinbox_value_changed(self, value):
-        width = self.spinBox.value()
-        height = self.spinBox_2.value()
-
-        # если фиксируем соотношение сторон
-        if self.checkBox.isChecked():
-            # разбираем текущее соотношение, например "16:9"
-            ratio_text = self.label_5.text()
-            try:
-                ratio_w, ratio_h = map(int, ratio_text.split(":"))
-            except ValueError:
-                # если вдруг там что-то странное - по умолчанию 16:9
-                ratio_w, ratio_h = 16, 9
-
-            sender = self.sender()
-            # определяем, какой spinBox изменён
-            if sender == self.spinBox:
-                # пересчитываем высоту
-                new_height = round(width * ratio_h / ratio_w)
-                self.spinBox_2.blockSignals(True)
-                self.spinBox_2.setValue(new_height)
-                self.spinBox_2.blockSignals(False)
-            elif sender == self.spinBox_2:
-                # пересчитываем ширину
-                new_width = round(height * ratio_w / ratio_h)
-                self.spinBox.blockSignals(True)
-                self.spinBox.setValue(new_width)
-                self.spinBox.blockSignals(False)
-        else:
-            # если галочка снята - просто показываем текущее соотношение
-            common_divisor = math.gcd(width, height)
-            ratio_width = width // common_divisor
-            ratio_height = height // common_divisor
-            self.label_5.setText(f"{ratio_width}:{ratio_height}")
-
-    def get_values(self):
-        """Возвращает данные формы в виде словаря"""
-        return {
-            "name": self.lineEdit.text() or "Безымянный проект",
-            "width": self.spinBox.value(),
-            "height": self.spinBox_2.value(),
-            "background": self.comboBox.currentText()
-        }
-    
-class SettingsForm(QDialog):
-    def __init__(self, parent=None, layer=None):
-        super().__init__(parent)
-        uic.loadUi("ui/layer.ui", self)
-
-        self.layer = layer
-
-        if self.layer.type == "Text":
-            self.edit = QTextEdit()
-            self.edit.setText(self.layer.text)
-            self.gridLayout_5.addWidget(self.edit, 0, 1, 3, 1)
-            self.col = self.layer.text_color
-
-            self.fontBox = QFontComboBox()
-            try:
-                self.fontBox.setCurrentFont(self.layer.font)
-            except:
-                pass
-            self.gridLayout_5.addWidget(self.fontBox, 0, 0)
-
-            self.fontSize = QSpinBox()
-            self.fontSize.setMinimum(5)
-            self.fontSize.setMaximum(2184)
-            try:
-                self.fontSize.setValue(self.layer.font.pixelSize())
-            except:
-                self.fontSize.setValue(12)
-            self.gridLayout_5.addWidget(self.fontSize, 1, 0)
-            self.button = QPushButton("Select color")
-            self.button.setStyleSheet("color: rgba%s" 
-                                   % str(self.layer.text_color.getRgb()))
-            self.button.clicked.connect(self.showDialog)
-            self.gridLayout_5.addWidget(self.button, 2, 0)
-
-
-        # связываем кнопки
-        self.buttonBox.accepted.connect(self.accept)
-        self.buttonBox.rejected.connect(self.reject)
-        self.horizontalSlider.valueChanged.connect(self.value_changed)
-
-        self.lineEdit.setText(self.layer.name)
-        self.checkBox.setChecked(self.layer.visible)
-        self.checkBox_2.setChecked(self.layer.locked)
-        self.horizontalSlider.setValue(int(self.layer.opacity*100))
-
-        if self.layer.name == "Background":
-            self.lineEdit.setDisabled(True)
-            self.checkBox_2.setDisabled(True)
-            self.checkBox_2.setChecked(True)
-
-        try:
-            self.spinBox.setValue(int(self.layer.scale))
-        except:
-            self.spinBox.setDisabled(True)
-
-        self.label_3.setText(f"Opacity: {int(self.layer.opacity*100)}%")
-
-    def showDialog(self):
-        self.col = QColorDialog.getColor()
-        if self.col.isValid():
-            self.button.setStyleSheet("color: rgba%s" 
-                                   % str(self.col.getRgb()))
-        
-
-    def value_changed(self):
-        self.label_3.setText(f"Opacity: {self.horizontalSlider.value()}%")
-
-    def get_values(self):
-        """Возвращает данные формы в виде словаря"""
-        out =  {
-            "name": self.lineEdit.text(),
-            "visible": self.checkBox.isChecked(),
-            "locked": self.checkBox_2.isChecked(),
-            "opacity": self.horizontalSlider.value(),
-            "scale": self.spinBox.value()
-        }
-
-        if self.layer.type == "Text":
-            font = self.fontBox.currentFont()
-            font.setPixelSize(self.fontSize.value())
-            out["text"] = self.edit.toPlainText()
-            out["font"] = font
-            out["color"] = self.col
-
-        return out
+file_filter = (
+    "Поддерживаемые изображения (*.bmp *.gif *.jpg *.jpeg *.png *.pbm *.pgm *.ppm *.xbm *.xpm);;"
+    "Portable Network Graphics (*.png);;"
+    "Joint Photographic Experts Group (*.jpeg);;"
+    "Windows Bitmap (*.bmp);;"
+    "Graphics Interchange Format (*.gif);;"
+    "Portable Bitmap (*.pbm);;"
+    "Portable Graymap (*.pgm);;"
+    "Portable Pixmap (*.ppm);;"
+    "X11 Bitmap (*.xbm);;"
+    "X11 Pixmap (*.xpm)"
+)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

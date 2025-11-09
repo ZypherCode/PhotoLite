@@ -19,3 +19,4 @@ class BrushTool(BasicTool):
         super().__init__()
         self.type = "Brush"
         self.width = 4
+        self.hardness = 0

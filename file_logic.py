@@ -9,7 +9,6 @@ from PyQt6.QtGui import QPixmap, QColor, QFont
 from PyQt6.QtCore import QPointF
 
 from document import Document
-from layer import Image, Solid, Text
 
 
 def pack(project_dir: str, zip_path: str):
@@ -64,6 +63,11 @@ def clear_folder(folder_path):
         except Exception as e:
             print(f'Не удалось удалить {file_path}. Причина: {e}')
 
+
+class NotCorrectFolder(Exception):
+    pass
+
+
 class SaveDoc:
     def __init__(self, document, folder_path):
         self.doc = document
@@ -72,7 +76,6 @@ class SaveDoc:
 
         os.makedirs(self.tmp_folder, exist_ok=True)
         clear_folder(self.tmp_folder)
-        print(self.tmp_folder)
 
         self.save_manifest()
 
@@ -85,13 +88,14 @@ class SaveDoc:
         self.conn.commit()
         self.conn.close()
 
-        pack(self.tmp_folder, os.path.join(folder_path, "project.pld"))
+        pack(self.tmp_folder, folder_path)
         clear_folder(self.tmp_folder)
 
 
     # === 1. MANIFEST ===
     def save_manifest(self):
         data = {
+            "version": self.doc.version,
             "project_name": self.doc.name,
             "canvas_width": self.doc.width,
             "canvas_height": self.doc.height,
@@ -204,19 +208,10 @@ class SaveDoc:
                     i,
                     layer.text,
                     layer.font.family(),
-                    layer.font.pointSize(),
+                    layer.font.pixelSize(),
                     r, g, b
                 ))
 
-
-import os
-import json
-import sqlite3
-from PyQt6.QtGui import QPixmap, QColor
-from PyQt6.QtCore import QPointF
-
-class NotCorrectFolder(Exception):
-    pass
 
 class OpenDoc:
     def __init__(self, file_path):
@@ -239,13 +234,12 @@ class OpenDoc:
         except FileNotFoundError:
             raise NotCorrectFolder("Please select correct folder")
 
-        from document import Document
-
         doc = Document(
             name=data["project_name"],
             width=data["canvas_width"],
             height=data["canvas_height"]
         )
+        doc.color = QColor(*data["color"])
 
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
@@ -276,8 +270,10 @@ class OpenDoc:
                 text, font_family, font_size, r, g, b = c.fetchone()
                 doc.add_text_layer(name, text)
                 layer = doc.layers.get_active_layer()
-                layer.font.setFamily(font_family)
-                layer.font.setPixelSize(font_size)
+                font = QFont()
+                font.setFamily(font_family)
+                font.setPixelSize(font_size)
+                layer.set_font(font)
                 layer.set_color(QColor(r, g, b))
 
             layer.set_visible(bool(visible))
@@ -291,4 +287,4 @@ class OpenDoc:
         clear_folder(self.tmp_folder)
         for i, layer in enumerate(doc.layers._layers):
             layer.set_z(i)
-        return doc
+        return doc, data["version"]
