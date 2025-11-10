@@ -147,7 +147,6 @@ class Image(Layer):
         # Подготовка цвета
         r, g, b = color.red(), color.green(), color.blue()
         h = hardness / 100.0
-        print(hardness, h)
         a0 = start_alpha
         a1 = int(a0 * h)  # альфа на краю
 

@@ -1,5 +1,6 @@
-import sys, psutil
+import sys, psutil, math
 from random import randint
+from datetime import datetime
 
 from PyQt6 import uic
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QFileDialog, QDialog, 
@@ -48,7 +49,7 @@ class AppWindow(QMainWindow):
         self.documents = []
 
         self.tabWidget.currentChanged.connect(self.on_tab_changed)
-        self.tabWidget.tabCloseRequested.connect(self.closeDoc)
+        self.tabWidget.tabCloseRequested.connect(self.close_doc)
 
         # кастомный колорпикер 
         self.picker = ColorPicker()
@@ -69,13 +70,13 @@ class AppWindow(QMainWindow):
         self.checkSoft.stateChanged.connect(self.change_hardness)
 
         # Менюбар
-        self.saveAct.triggered.connect(self.saveDoc)
-        self.openAct.triggered.connect(self.openDoc)
+        self.saveAct.triggered.connect(self.save_doc)
+        self.openAct.triggered.connect(self.open_doc)
         self.actionExport.triggered.connect(self.export)
         self.addAct.triggered.connect(self.add_image_layer_to_active)
-        self.newAct.triggered.connect(self.newDoc)
-        self.actionClose.triggered.connect(lambda: self.closeDoc(self.listLayers.currentRow()))
-        self.actionCloseAll.triggered.connect(self.closeAll)
+        self.newAct.triggered.connect(self.new_doc)
+        self.actionClose.triggered.connect(lambda: self.close_doc(self.listLayers.currentRow()))
+        self.actionCloseAll.triggered.connect(self.close_all)
         self.actionExit.triggered.connect(self.close)
         self.actionGetComposite.triggered.connect(self.add_composite_layer)
         self.actionAddEmptyLayer.triggered.connect(self.add_empty_layer)
@@ -84,10 +85,10 @@ class AppWindow(QMainWindow):
         self.aboutAct.triggered.connect(self.open_about)
 
         # Инструменты
-        self.actionHand.triggered.connect(self.changeTool)
-        self.actionMoveTool.triggered.connect(self.changeTool)
-        self.actionBrush.triggered.connect(self.changeTool)
-        self.actionErasier.triggered.connect(self.changeTool)
+        self.actionHand.triggered.connect(self.change_tool)
+        self.actionMoveTool.triggered.connect(self.change_tool)
+        self.actionBrush.triggered.connect(self.change_tool)
+        self.actionErasier.triggered.connect(self.change_tool)
 
         # Иконки
         self.actionHand.setIcon(QIcon("ui\\icons\\hand.svg"))
@@ -154,9 +155,9 @@ class AppWindow(QMainWindow):
         except AttributeError:
             pass
 
-    def closeAll(self):
+    def close_all(self):
         for i in range(len(self.documents) - 1, -1, -1):
-            self.closeDoc(i)
+            self.close_doc(i)
 
     def closeEvent(self, event):
         """если закрыл окно и не сохранил"""
@@ -179,7 +180,7 @@ class AppWindow(QMainWindow):
             button = dlg.exec()
 
             if button == QMessageBox.StandardButton.Save:
-                self.saveDoc(self.documents[i])
+                self.save_doc(self.documents[i])
             elif button == QMessageBox.StandardButton.Cancel:
                 event.ignore()
                 return
@@ -192,7 +193,7 @@ class AppWindow(QMainWindow):
         form = AboutForm(self)
         form.show()
 
-    def closeDoc(self, index):
+    def close_doc(self, index):
         dlg = QMessageBox(self)
         dlg.setWindowTitle("Закрытие документа")
         dlg.setText(f"Сохранить изменения в «{self.documents[index].name}»?")
@@ -201,7 +202,7 @@ class AppWindow(QMainWindow):
         button = dlg.exec()
 
         if button == QMessageBox.StandardButton.Save:
-            self.saveDoc(self.documents[index])
+            self.save_doc(self.documents[index])
         elif button == QMessageBox.StandardButton.Close:
             return
         
@@ -209,17 +210,17 @@ class AppWindow(QMainWindow):
         self.tabWidget.removeTab(index)
         self.listLayers.clear()
 
-    def openDoc(self):
+    def open_doc(self):
         filename, _ = QFileDialog.getOpenFileName(self, "Выбрать проект", "", "PhotoLite (*.pld)")
         if not filename:
             return
         try:
             dc = OpenDoc(filename)
             doc, ver = dc.get_opened_document()
-            if ver > doc.version:
+            if ver > doc.sys_version:
                 dlg = QMessageBox(self)
                 dlg.setWindowTitle("Конфликт совместимости")
-                dlg.setText(f"""Проект «{doc.name}» создан в PhotoLite {ver}, но у вас стоит более ранняя версия {doc.version}
+                dlg.setText(f"""Проект «{doc.name}» создан в PhotoLite {ver}, но у вас стоит более ранняя версия {doc.sys_version}
 Рекомендуем обновить программу или создать резервную копию, иначе Вы можете повредить проект. 
 Продолжить?""")
                 dlg.setStandardButtons(
@@ -247,7 +248,7 @@ class AppWindow(QMainWindow):
             dlg.setIcon(QMessageBox.Icon.Critical)
             button = dlg.exec()
 
-    def newDoc(self):
+    def new_doc(self):
         dialog = SecondForm(self)
         result = dialog.exec()
 
@@ -272,7 +273,7 @@ class AppWindow(QMainWindow):
             self.update_layer_list(doc)
             self.listLayers.setCurrentRow(0)
 
-    def saveDoc(self, doc=None):
+    def save_doc(self, doc=None):
         doc = self.get_active_document()
         if doc and doc.filepath:
             dirname = doc.filepath
@@ -292,6 +293,7 @@ class AppWindow(QMainWindow):
         QApplication.processEvents()
 
         SaveDoc(doc, dirname)
+        doc.modified = datetime.now().timestamp()
 
         dlg.setValue(100)
         dlg.close()
@@ -317,7 +319,7 @@ class AppWindow(QMainWindow):
             return
         doc.brush.hardness = (state != 0) * 100
 
-    def changeTool(self, button):
+    def change_tool(self, button):
         doc = self.get_active_document()
         if not doc:
             return
@@ -479,6 +481,9 @@ class AppWindow(QMainWindow):
         elif self.listLayers.count() > 0:
             self.listLayers.setCurrentRow(0)
 
+        self.textBrowser.setHtml(get_doc_html(doc))
+        print(doc.layers._layers)
+
     def on_layer_toggled(self, widget, visible):
         # находим элемент списка, которому принадлежит этот widget...
         for i in range(self.listLayers.count()):
@@ -556,6 +561,7 @@ class AppWindow(QMainWindow):
         try:
             doc = self.get_active_document()
             if not doc:
+                print(54)
                 return
             doc.remove_layer(self.listLayers.currentRow())
             self.update_layer_list(doc)
@@ -585,6 +591,31 @@ file_filter = (
     "X11 Bitmap (*.xbm);;"
     "X11 Pixmap (*.xpm)"
 )
+
+def get_doc_html(doc):
+    common_divisor = math.gcd(doc.width, doc.height)
+    ratio_width = doc.width // common_divisor
+    ratio_height = doc.height // common_divisor
+    ratio = f"{ratio_width}:{ratio_height}"
+
+    created = datetime.fromtimestamp(doc.created).strftime('%Y-%m-%d %H:%M:%S')
+    if doc.modified:
+        modified = datetime.fromtimestamp(doc.modified).strftime('%Y-%m-%d %H:%M:%S')
+    else:
+        modified = "Никогда"
+
+    html_text = f"""
+        <h1>{doc.name}</h1>
+        <p>
+        {doc.dsc.replace("\n", "<br>")}<br><br>
+
+        Размеры: {doc.width}/{doc.height} ({ratio})<br>
+        Создан: {created} в PhotoLite {doc.version}<br>
+        Изменен: {modified}<br>
+        </p>
+        """
+
+    return html_text
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

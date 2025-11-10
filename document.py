@@ -12,7 +12,8 @@ from layer import LayerManager, Layer, Solid, Image, Text
 class Document(QWidget):
     def __init__(self, name="Новый документ", width=1280, height=720):
         super().__init__()
-        self.version = "1.0"
+        self.sys_version = "1.0"
+        self.version = self.sys_version
         self.name = name
         self.width = width
         self.height = height
@@ -21,7 +22,9 @@ class Document(QWidget):
         self.color = QColor(255, 0, 0)
         self.erasier = False
         self.created = datetime.now().timestamp()
+        self.modified = None
         self.filepath = None
+        self.dsc = "<i>No discription</i>"
 
         # Сцена и вью
         self.scene = CanvasScene()

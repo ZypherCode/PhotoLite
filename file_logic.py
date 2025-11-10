@@ -95,7 +95,8 @@ class SaveDoc:
     # === 1. MANIFEST ===
     def save_manifest(self):
         data = {
-            "version": self.doc.version,
+            "version": self.doc.sys_version,
+            "discription": self.doc.dsc,
             "project_name": self.doc.name,
             "canvas_width": self.doc.width,
             "canvas_height": self.doc.height,
@@ -240,6 +241,11 @@ class OpenDoc:
             height=data["canvas_height"]
         )
         doc.color = QColor(*data["color"])
+        doc.created = data["created"]
+        doc.modified = data["modified"]
+        doc.version = data["version"]
+        if data["discription"]:
+            doc.dsc = data["discription"]
 
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()

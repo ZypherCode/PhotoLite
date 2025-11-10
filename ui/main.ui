@@ -178,8 +178,8 @@
   <widget class="QDockWidget" name="dockWidget">
    <property name="minimumSize">
     <size>
-     <width>145</width>
-     <height>87</height>
+     <width>148</width>
+     <height>187</height>
     </size>
    </property>
    <property name="maximumSize">
@@ -207,6 +207,9 @@
     <layout class="QGridLayout" name="gridLayout_2">
      <item row="0" column="0">
       <widget class="QTabWidget" name="tabWidget_2">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
        <property name="currentIndex">
         <number>0</number>
        </property>
@@ -217,6 +220,26 @@
         <layout class="QGridLayout" name="gridLayout_6">
          <item row="0" column="0">
           <layout class="QGridLayout" name="gridLayout_5"/>
+         </item>
+        </layout>
+       </widget>
+       <widget class="QWidget" name="tab">
+        <property name="maximumSize">
+         <size>
+          <width>336</width>
+          <height>10000000</height>
+         </size>
+        </property>
+        <attribute name="title">
+         <string>Проект</string>
+        </attribute>
+        <layout class="QGridLayout" name="gridLayout_8">
+         <item row="0" column="0">
+          <layout class="QGridLayout" name="gridLayout_7">
+           <item row="0" column="0">
+            <widget class="QTextBrowser" name="textBrowser"/>
+           </item>
+          </layout>
          </item>
         </layout>
        </widget>
