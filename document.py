@@ -1,3 +1,7 @@
+"""
+Логика документа (одной вкладки)
+"""
+
 from datetime import datetime
 
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QGraphicsRectItem

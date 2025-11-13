@@ -9,6 +9,7 @@ pyvenv.cfg
 test.py
 prj/
 projects/
+makescep.py
 
 # C extensions
 *.so

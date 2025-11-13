@@ -1,3 +1,8 @@
+"""
+Объект сцены.
+Обработка мыши
+"""
+
 from PyQt6.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsEllipseItem
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QWheelEvent, QPainter, QBrush, QColor, QPen, QCursor, QPixmap

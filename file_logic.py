@@ -1,3 +1,7 @@
+"""
+Сохранение и открытие проектов
+"""
+
 import os
 import shutil
 import json

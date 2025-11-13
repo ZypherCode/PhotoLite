@@ -1,3 +1,7 @@
+"""
+Слои и менеджер слоев
+"""
+
 import math
 
 from PyQt6.QtWidgets import QGraphicsItemGroup, QGraphicsRectItem, QGraphicsTextItem, QGraphicsPixmapItem

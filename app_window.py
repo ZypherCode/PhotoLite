@@ -1,3 +1,8 @@
+"""
+Главный файл приложения.
+Логика ui
+"""
+
 import sys, psutil, math
 from random import randint
 from datetime import datetime
