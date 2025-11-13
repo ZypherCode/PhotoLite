@@ -51,7 +51,7 @@ class Document(QWidget):
 
     def remove_layer(self, index):
         index = len(self.layers._layers) - index - 1
-        if self.layers._layers[index].name != "Background":
+        if self.layers._layers[index] is not self.bg_layer:
             self.layers.remove(index)
 
     def changeTool(self, tool):

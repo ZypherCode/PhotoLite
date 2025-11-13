@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsEllipseItem
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QWheelEvent, QPainter, QBrush, QColor, QPen
+from PyQt6.QtGui import QWheelEvent, QPainter, QBrush, QColor, QPen, QCursor, QPixmap
 
 
 class CanvasView(QGraphicsView):
@@ -20,6 +20,9 @@ class CanvasView(QGraphicsView):
         self.brush_preview.setPen(QPen(Qt.GlobalColor.darkGray, 2, Qt.PenStyle.DashLine))
         self.brush_preview.setZValue(1500)
         doc.scene.addItem(self.brush_preview)
+
+        self.cursor_default = QCursor(QPixmap("ui\\icons\\cross.svg").scaledToHeight(18), -8, -8)
+
 
     def wheelEvent(self, event):
         """Scaling by Ctrl+Alt+Wheel"""
@@ -51,6 +54,7 @@ class CanvasView(QGraphicsView):
         if not hasattr(self.doc.activeTool, "type"):
             return
         if self.doc.active_layer.type == "Image" and self.doc.activeTool.type == "Brush":
+            self.setCursor(self.cursor_default)
             color = self.doc.color
             pos = self.mapToScene(event.pos()).toPoint()
             width = self.doc.brush.width
@@ -68,8 +72,11 @@ class CanvasView(QGraphicsView):
                 self.last_pos = pos  # продолжение линии без перерисовки
         elif self.doc.activeTool.type == "Editor":
             super().mouseMoveEvent(event)
+            self.brush_preview.hide()
+            self.setCursor(Qt.CursorShape.SizeAllCursor)
         elif self.doc.activeTool.type == "Hand":
             super().mouseMoveEvent(event)
+            self.brush_preview.hide()
 
     def mouseReleaseEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:

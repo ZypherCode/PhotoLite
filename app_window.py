@@ -47,6 +47,8 @@ class AppWindow(QMainWindow):
         self.setContentsMargins(0, self.titlebar.height(), 0, 0)
 
         self.documents = []
+        self.easter_counter = 0
+        self.easter_stage = 0
 
         self.tabWidget.currentChanged.connect(self.on_tab_changed)
         self.tabWidget.tabCloseRequested.connect(self.close_doc)
@@ -117,7 +119,7 @@ class AppWindow(QMainWindow):
         self.timer.start(350)
 
     def update_widget(self):
-        memory_in_bytes = self.process.memory_info().rss
+        memory_in_bytes = self.process.memory_info().rss 
         memory_in_kb = memory_in_bytes / 1024
         memory_in_mb = memory_in_kb / 1024 
         memory_in_gb = memory_in_mb / 1024
@@ -132,6 +134,7 @@ class AppWindow(QMainWindow):
 
         out += f", процессор: {processor:.1f}%"
         self.statusbar.showMessage(out)
+        self.easter_counter =+ int(self.easter_counter >= 0)
 
     def on_selection_changed(self, selected, deselected):
         if self.listLayers.currentRow() == -1 and self.listLayers.count() > 0:
@@ -166,7 +169,7 @@ class AppWindow(QMainWindow):
             return
 
         # на момент написания данного комментария я 
-        # благополучно забыл зачем инвертировать список :)
+        # благополучно забыл зачем инвертировать  список :)
         for i in range(len(self.documents) - 1, -1, -1):
             dlg = QMessageBox(self)
             dlg.setWindowTitle("Закрытие документа")
@@ -330,6 +333,7 @@ class AppWindow(QMainWindow):
             doc.changeTool(Hand())
             self.label_4.setText("Hand")
         elif self.sender() is self.actionMoveTool:
+            self.easter()
             doc.changeTool(Editor())
             self.label_4.setText("Move tool")
         elif self.sender() is self.actionBrush or self.sender() is self.actionErasier:
@@ -482,7 +486,6 @@ class AppWindow(QMainWindow):
             self.listLayers.setCurrentRow(0)
 
         self.textBrowser.setHtml(get_doc_html(doc))
-        print(doc.layers._layers)
 
     def on_layer_toggled(self, widget, visible):
         # находим элемент списка, которому принадлежит этот widget...
@@ -561,7 +564,6 @@ class AppWindow(QMainWindow):
         try:
             doc = self.get_active_document()
             if not doc:
-                print(54)
                 return
             doc.remove_layer(self.listLayers.currentRow())
             self.update_layer_list(doc)
@@ -577,6 +579,23 @@ class AppWindow(QMainWindow):
         doc = self.get_active_document()
         if doc:
             self.update_layer_list(doc)
+        
+    def easter(self):
+        self.easter_counter += 1
+        if self.easter_counter > 3:
+            if self.easter_stage == 0:
+                self.actionMoveTool.setIcon(QIcon("ui\\icons\\egg1.svg"))
+                self.easter_stage += 1
+            elif self.easter_stage == 1:
+                self.actionMoveTool.setIcon(QIcon("ui\\icons\\egg2.svg"))
+                self.easter_stage += 1
+            elif self.easter_stage == 2:
+                self.actionMoveTool.setIcon(QIcon("ui\\icons\\egg3.svg"))
+                self.easter_stage += 1
+            elif self.easter_stage >= 3:
+                self.actionMoveTool.setIcon(QIcon("ui\\icons\\egg4.svg"))
+                self.easter_stage += 1
+                self.easter_counter = 0
 
 
 file_filter = (
@@ -591,6 +610,7 @@ file_filter = (
     "X11 Bitmap (*.xbm);;"
     "X11 Pixmap (*.xpm)"
 )
+
 
 def get_doc_html(doc):
     common_divisor = math.gcd(doc.width, doc.height)

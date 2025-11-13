@@ -1,7 +1,7 @@
 import math
 
 from PyQt6.QtWidgets import QGraphicsItemGroup, QGraphicsRectItem, QGraphicsTextItem, QGraphicsPixmapItem
-from PyQt6.QtGui import QBrush, QPen, QPainter, QColor, QFont, QRadialGradient, QPixmap
+from PyQt6.QtGui import QBrush, QPen, QPainter, QColor, QFont, QRadialGradient, QPixmap, QImage
 from PyQt6.QtCore import Qt, QSize
 
 
@@ -132,9 +132,15 @@ class Image(Layer):
         super().__init__(name, scene, None, width, height, z_value)
         self.type = "Image"
         self.pixmap = pixmap
-        self.blend_mode = QPainter.CompositionMode.CompositionMode_SourceOver  # по умолчанию - обычное рисование
 
-        self.item = QGraphicsPixmapItem(pixmap)
+        print(self.pixmap.hasAlphaChannel())
+        img = self.pixmap.toImage()
+        if img.format() != QImage.Format.Format_RGBA64:
+            img = img.convertToFormat(QImage.Format.Format_RGBA64)
+            self.pixmap = QPixmap.fromImage(img)
+        print(img.format() == QImage.Format.Format_RGBA64)
+
+        self.item = QGraphicsPixmapItem(self.pixmap)
         self.item.setFlags(QGraphicsPixmapItem.GraphicsItemFlag.ItemIsMovable |
                            QGraphicsPixmapItem.GraphicsItemFlag.ItemIsSelectable)
         self.add_item(self.item)
@@ -183,8 +189,8 @@ class Image(Layer):
         # Рисуем плавно
         for i in range(steps):
             t = i / steps
-            x = p1.x() + dx * t
-            y = p1.y() + dy * t
+            x = p1.x() + dx * t - self.pos().x()
+            y = p1.y() + dy * t - self.pos().y()
             painter.save()
             painter.translate(x - width, y - width)
             painter.setBrush(brush)
@@ -249,6 +255,7 @@ class LayerManager:
     
     def remove(self, index):
         self._layers[index].delete()
+        self._layers.pop(index)
 
     def move(self, index, direction):
         if direction:
